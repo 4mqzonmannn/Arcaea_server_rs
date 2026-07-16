@@ -34,8 +34,10 @@ RUN cargo build --release --locked \
 FROM debian:bookworm-slim AS app
 WORKDIR /app
 
+# mariadb-client provides `mariadb-dump`, used by the admin web panel's
+# manual database-backup feature (service::backup).
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl netcat-openbsd tini \
+    && apt-get install -y --no-install-recommends ca-certificates curl netcat-openbsd tini mariadb-client \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system arcaea \
     && useradd --system --gid arcaea --home-dir /app --shell /usr/sbin/nologin arcaea
@@ -48,7 +50,7 @@ COPY --from=frontend-builder /src/frontend/dist /app/web
 COPY assets /app/assets
 COPY deploy/docker-entrypoint.sh /usr/local/bin/docker-entrypoint
 
-RUN mkdir -p /app/songs /app/bundles \
+RUN mkdir -p /app/songs /app/bundles /app/backups \
     && chmod +x /usr/local/bin/docker-entrypoint \
     && chown -R arcaea:arcaea /app
 

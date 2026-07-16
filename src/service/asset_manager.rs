@@ -50,7 +50,6 @@ pub struct SongInfo {
     pub id: String,
     pub set: Option<String>,
     pub purchase: Option<String>,
-    #[serde(rename = "remoteDl")]
     pub remote_dl: Option<bool>,
     #[serde(rename = "worldUnlock")]
     pub world_unlock: Option<bool>,

@@ -8,7 +8,10 @@ default-run = "Arcaea_server_rs"
 lazy_static = "1.5.0"
 rocket = { version = "0.5.1", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+# preserve_order: the admin songlist editor round-trips entries as raw
+# serde_json::Value; without insertion-order maps every save would
+# alphabetize keys and produce huge spurious diffs against the original file.
+serde_json = { version = "1.0", features = ["preserve_order"] }
 serde_urlencoded = "0.7.1"
 reqwest = { version = "0.12", default-features = false, features = [
     "json",
@@ -27,6 +30,7 @@ tokio = { version = "1.0", features = ["full"] }
 chrono = { version = "0.4", features = ["serde"] }
 base64 = "0.22"
 sha2 = "0.10"
+hmac = "0.12"
 bcrypt = "0.15"
 uuid = { version = "1.0", features = ["v4"] }
 anyhow = "1.0"
@@ -72,3 +76,7 @@ path = "src/bin/sync_s3_manifest.rs"
 [[bin]]
 name = "perf_load"
 path = "src/bin/perf_load.rs"
+
+[[bin]]
+name = "bundle_manager"
+path = "src/bin/bundle_manager/main.rs"

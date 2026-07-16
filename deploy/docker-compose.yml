@@ -29,6 +29,7 @@ x-app-environment: &app-environment
   BUNDLE_DOWNLOAD_LINK_PREFIX: ${BUNDLE_DOWNLOAD_LINK_PREFIX:-null}
   DISABLE_REGISTRATION: ${DISABLE_REGISTRATION:-false}
   TRACE_COMPLETE_TICKET_REWARD_ENABLED: ${TRACE_COMPLETE_TICKET_REWARD_ENABLED:-false}
+  ALLOW_LOGIN_SAME_DEVICE: ${ALLOW_LOGIN_SAME_DEVICE:-false}
   LINKPLAY_HOST: linkplayd
   LINKPLAY_UDP_PORT: ${LINKPLAY_UDP_PORT:-10900}
   LINKPLAY_TCP_PORT: ${LINKPLAY_TCP_PORT:-10901}
@@ -95,9 +96,18 @@ services:
         condition: service_started
     environment: *app-environment
     volumes:
-      - ../assets:/app/assets:ro
-      - ../songs:/app/songs:ro
-      - ../bundles:/app/bundles:ro
+      # Read-write: the admin world-map editor writes assets/map/*.json (and
+      # timestamped .bak copies). Other assets are still only read.
+      - ../assets:/app/assets
+      # Read-write: the admin web app's songlist editor writes the songlist
+      # (plus timestamped .bak copies) here from inside this container.
+      - ../songs:/app/songs
+      # Read-write: the admin web app's bundle_manager "build" action writes
+      # new .cb/.json files here directly from inside this container.
+      - ../bundles:/app/bundles
+      # Read-write: manual database backups (admin web) are written here and
+      # listed/downloaded from here; shared with the db-backup service below.
+      - ../backups:/app/backups
     expose:
       - "8090"
     healthcheck:
@@ -106,6 +116,51 @@ services:
       timeout: 5s
       retries: 30
       start_period: 60s
+
+  # Scheduled logical database backups. Runs mariadb-dump on an interval and
+  # keeps the most recent N files, writing to the same ../backups directory
+  # the admin web panel lists and serves from. Uses the mariadb image (which
+  # ships mariadb-dump) rather than the app image so backups keep running even
+  # if the app is down.
+  db-backup:
+    image: mariadb:11.4
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MYSQL_PWD: ${MARIADB_PASSWORD:-arcaea_password}
+      BACKUP_DB: ${MARIADB_DATABASE:-arcaea_core}
+      BACKUP_USER: ${MARIADB_USER:-arcaea}
+      # Interval between backups (seconds) and how many to keep.
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
+    volumes:
+      - ../backups:/backups
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        echo "db-backup: interval=${BACKUP_INTERVAL_SECONDS:-86400}s keep=${BACKUP_KEEP:-14}"
+        while true; do
+          ts=$$(date +%s)
+          tmp="/backups/.scheduled-$$ts.sql.partial"
+          out="/backups/arcaea_core-$$ts.sql"
+          if mariadb-dump --host=db --port=3306 --user="$$BACKUP_USER" \
+               --single-transaction --no-tablespaces --routines --triggers \
+               --databases "$$BACKUP_DB" > "$$tmp" 2>/tmp/dumperr; then
+            mv "$$tmp" "$$out"
+            echo "db-backup: wrote $$out ($$(wc -c < "$$out") bytes)"
+          else
+            echo "db-backup: FAILED: $$(cat /tmp/dumperr)"
+            rm -f "$$tmp"
+          fi
+          ls -1t /backups/arcaea_core-*.sql 2>/dev/null | tail -n +$$(( $${BACKUP_KEEP:-14} + 1 )) | while read -r old; do
+            echo "db-backup: pruning $$old"; rm -f "$$old"
+          done
+          sleep "$${BACKUP_INTERVAL_SECONDS:-86400}"
+        done
 
   linkplayd:
     image: arcaea-server-rs:local
@@ -138,6 +193,15 @@ services:
       BACKEND_UPSTREAM: app:8090
     ports:
       - "${HTTP_PORT:-8080}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      # Persist the local CA (private key + root cert) across container
+      # recreation. Without this, every rebuild/recreate generates a brand
+      # new self-signed CA, silently invalidating any cert the client (or
+      # macOS System keychain) already trusts -- this caused a recurrence
+      # of download error 9804 after rebuilding for the HTTP/3 fix.
+      - caddy-data:/data
+      - caddy-config:/config
 
   minio:
     image: minio/minio:${MINIO_TAG:-latest}
@@ -178,3 +242,5 @@ volumes:
   mariadb-data:
   redis-data:
   minio-data:
+  caddy-data:
+  caddy-config:

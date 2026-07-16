@@ -14,6 +14,14 @@ Rocket.toml
 
 bundles
 songs
+songs.old
+bundles_old_chain
+img
+
+# DB dumps (contain real user data) and the world-map editor's autosave
+# backups -- operational output, never repo content.
+/backups/
+assets/map/.backups/
 
 # Frontend build output (also covered by frontend/.gitignore)
 frontend/dist

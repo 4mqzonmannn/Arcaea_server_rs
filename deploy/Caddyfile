@@ -1,8 +1,128 @@
 {
 	admin off
+	# The Arc-mobile client (and curl) connect to bare IP literals without
+	# sending SNI (per RFC 6066, SNI is for hostnames). Without this, Caddy
+	# can't match the connection to the site and the TLS handshake fails
+	# with "internal error" before any certificate is sent. This must be
+	# kept in sync with whatever bare-IP address the patched client binary
+	# is pointed at (see the matching site block below).
+	default_sni 192.168.40.206
+
+	# Disable HTTP/3 (QUIC/UDP) on the 443 listener: suspected cause of
+	# NSURLErrorNetworkConnectionLost (-1005) on large bundle downloads
+	# through the nested colima VM -> Docker network path. `protocols` is
+	# only valid as a "servers" sub-directive in the global options block,
+	# not inside a site block (that syntax errors as "unrecognized directive").
+	servers :443 {
+		protocols h1 h2
+	}
 }
 
 :80 {
+	encode zstd gzip
+
+	redir /web /web/ 308
+
+	handle /web/api/* {
+		reverse_proxy {$BACKEND_UPSTREAM:app:8090}
+	}
+
+	handle /web/assets/* {
+		root * /srv
+		file_server
+	}
+
+	handle_path /web/* {
+		root * /srv/web
+		try_files {path} {path}/ /index.html
+		file_server
+	}
+
+	handle {
+		reverse_proxy {$BACKEND_UPSTREAM:app:8090}
+	}
+}
+
+# Local-only self-signed HTTPS on 443, since the Arc-mobile client always
+# connects via https on the default port (confirmed against the working
+# remote Flask deployment: 443 -> 200, 80 -> 404). `tls internal` uses
+# Caddy's local CA to generate a self-signed cert; fine for a client that
+# doesn't do strict cert-chain validation against a self-hosted server.
+#
+# Using lvh.me (a public DNS wildcard that resolves to 127.0.0.1) instead of
+# the bare IP literal: the previously-working production deployment pointed
+# the client at a real hostname (an nip.io name) with a real Let's Encrypt
+# cert, never a bare IP. A bare IP connection sends no SNI (RFC 6066), which
+# forced the default_sni workaround above; a real hostname sends normal SNI
+# and exercises the client's ordinary TLS/hostname-handling code path.
+lvh.me:443 {
+	tls internal
+
+	encode zstd gzip
+
+	redir /web /web/ 308
+
+	handle /web/api/* {
+		reverse_proxy {$BACKEND_UPSTREAM:app:8090}
+	}
+
+	handle /web/assets/* {
+		root * /srv
+		file_server
+	}
+
+	handle_path /web/* {
+		root * /srv/web
+		try_files {path} {path}/ /index.html
+		file_server
+	}
+
+	handle {
+		reverse_proxy {$BACKEND_UPSTREAM:app:8090}
+	}
+}
+
+# Bare-IP LAN testing: the sideloaded client is patched to connect directly
+# to this Mac's LAN IP (arcaea_patcher.py, no domain name involved). Such a
+# connection carries no SNI, so `default_sni` above maps it to this site
+# block's hostname. `tls internal` issues a self-signed cert with this IP
+# as a SAN. NOTE: this IP is DHCP-assigned and can change -- if it does,
+# update both this block and `default_sni` above, then rebuild caddy.
+192.168.40.206:443 {
+	tls internal
+
+	encode zstd gzip
+
+	redir /web /web/ 308
+
+	handle /web/api/* {
+		reverse_proxy {$BACKEND_UPSTREAM:app:8090}
+	}
+
+	handle /web/assets/* {
+		root * /srv
+		file_server
+	}
+
+	handle_path /web/* {
+		root * /srv/web
+		try_files {path} {path}/ /index.html
+		file_server
+	}
+
+	handle {
+		reverse_proxy {$BACKEND_UPSTREAM:app:8090}
+	}
+}
+
+# Production (Oracle Cloud instance): real hostname registered via FreeDNS
+# (nrtk.mooo.com -> the instance's public IP), so the client is patched to
+# this domain instead of a bare IP (arcaea_patcher.py has a 14-char limit on
+# the target string, which ruled out the raw dotted-decimal IP). No `tls
+# internal` here -- omitting it makes Caddy request a real trusted cert from
+# Let's Encrypt automatically via the HTTP-01 challenge on :80, which must
+# stay reachable from the internet for renewals to keep working.
+nrtk.mooo.com {
 	encode zstd gzip
 
 	redir /web /web/ 308

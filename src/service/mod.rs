@@ -2,7 +2,9 @@ pub mod aggregate;
 pub mod arc_data;
 pub mod asset_init;
 pub mod asset_manager;
+pub mod backup;
 pub mod bundle;
+pub mod bundle_manager;
 pub mod cache;
 pub mod character;
 pub mod course;
@@ -20,6 +22,7 @@ pub mod score_image;
 pub mod storage;
 pub mod user;
 pub mod world;
+pub mod world_editor;
 
 // Re-export commonly used service types for convenience
 pub use asset_init::AssetInitService;

@@ -14,6 +14,8 @@ use rocket::fs::NamedFile;
 use rocket::http::Status;
 
 use rocket::response::status;
+use rocket::response::Responder;
+use rocket::Request;
 use rocket::serde::json::{Json, Value};
 use rocket::{get, post, routes, Route, State};
 use std::collections::HashMap;
@@ -337,6 +339,43 @@ pub async fn aggregate(
     Ok(response)
 }
 
+/// Wraps `NamedFile` to add headers that a static-file web server (e.g.
+/// nginx) would normally send automatically but Rocket's `NamedFile` does
+/// not: `Accept-Ranges`, `ETag`, `Last-Modified`. Some client HTTP stacks
+/// treat the absence of these as a signal that the resource isn't a plain
+/// static file, which can affect how they cache/verify the download.
+struct BundleFile(NamedFile);
+
+impl<'r> Responder<'r, 'static> for BundleFile {
+    fn respond_to(self, request: &'r Request<'_>) -> rocket::response::Result<'static> {
+        let metadata = std::fs::metadata(self.0.path()).ok();
+        let mut response = self.0.respond_to(request)?;
+
+        response.set_raw_header("Accept-Ranges", "bytes");
+
+        if let Some(metadata) = metadata {
+            if let Ok(modified) = metadata.modified() {
+                let datetime: chrono::DateTime<chrono::Utc> = modified.into();
+                response.set_raw_header(
+                    "Last-Modified",
+                    datetime.format("%a, %d %b %Y %H:%M:%S GMT").to_string(),
+                );
+                let etag = format!(
+                    "\"{:x}-{:x}\"",
+                    metadata.len(),
+                    modified
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0)
+                );
+                response.set_raw_header("ETag", etag);
+            }
+        }
+
+        Ok(response)
+    }
+}
+
 /// Bundle download endpoint
 ///
 /// Serves bundle files (JSON and CB) using download tokens.
@@ -346,7 +385,7 @@ pub async fn bundle_download(
     bundle_service: &State<BundleService>,
     token: &str,
     ctx: ClientContext<'_>,
-) -> Result<NamedFile, status::Custom<String>> {
+) -> Result<BundleFile, status::Custom<String>> {
     // Get client IP for rate limiting
     let client_ip = ctx.get_client_ip().unwrap_or("127.0.0.1");
 
@@ -358,7 +397,7 @@ pub async fn bundle_download(
             // Get the bundle file path directly from the service
             match bundle_service.get_bundle_file_path(&file_path).await {
                 Ok(full_path) => match NamedFile::open(full_path).await {
-                    Ok(file) => Ok(file),
+                    Ok(file) => Ok(BundleFile(file)),
                     Err(_) => Err(status::Custom(
                         Status::NotFound,
                         "File not found".to_string(),

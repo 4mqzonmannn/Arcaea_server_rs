@@ -455,7 +455,7 @@ async fn set_chart_editor_permission(
         > 0;
     if is_admin {
         return Ok(AdminActionResponse {
-            message: "管理员默认拥有曲目定数编辑权限".to_string(),
+            message: "管理者はデフォルトで曲目定数編集権限を保有しています".to_string(),
             affected_rows: 0,
         });
     }
@@ -468,7 +468,7 @@ async fn set_chart_editor_permission(
         )
         .execute(pool)
         .await
-        .map_err(|err| ArcError::input(format!("授予曲目定数编辑权限失败: {err}")))?
+        .map_err(|err| ArcError::input(format!("曲目定数編集権限の付与に失敗しました: {err}")))?
         .rows_affected()
     } else {
         sqlx::query!(
@@ -478,15 +478,15 @@ async fn set_chart_editor_permission(
         )
         .execute(pool)
         .await
-        .map_err(|err| ArcError::input(format!("撤销曲目定数编辑权限失败: {err}")))?
+        .map_err(|err| ArcError::input(format!("曲目定数編集権限の取り消しに失敗しました: {err}")))?
         .rows_affected()
     };
 
     Ok(AdminActionResponse {
         message: if enabled {
-            "已授予曲目定数编辑权限".to_string()
+            "曲目定数編集権限を付与しました".to_string()
         } else {
-            "已撤销曲目定数编辑权限".to_string()
+            "曲目定数編集権限を取り消しました".to_string()
         },
         affected_rows,
     })

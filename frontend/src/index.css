@@ -2,6 +2,58 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Arcaea client fonts (extracted from moe.low.arc.app/Fonts) for the pack
+   image generator so the canvas renders authentic in-game typography. */
+@font-face {
+  font-family: "Exo";
+  font-weight: 300;
+  font-style: normal;
+  font-display: block;
+  src: url("./assets/fonts/Exo-Light.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Exo";
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+  src: url("./assets/fonts/Exo-Regular.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Exo";
+  font-weight: 500;
+  font-style: normal;
+  font-display: block;
+  src: url("./assets/fonts/Exo-Medium.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Exo";
+  font-weight: 600;
+  font-style: normal;
+  font-display: block;
+  src: url("./assets/fonts/Exo-SemiBold.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Geosans Light";
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+  src: url("./assets/fonts/GeosansLight.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Noto Sans CJK SC";
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+  src: url("./assets/fonts/NotoSansCJKsc-Regular.otf") format("opentype");
+}
+@font-face {
+  font-family: "Noto Sans CJK SC";
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+  src: url("./assets/fonts/NotoSansCJKsc-Bold.otf") format("opentype");
+}
+
 :root {
   --background: oklch(0.985 0.004 245);
   --foreground: oklch(0.18 0.018 252);

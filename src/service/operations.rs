@@ -95,6 +95,24 @@ impl Operation for RefreshBundleCache {
     }
 }
 
+/// Re-parse all world map files into the in-memory `MAP_PARSER`, so edits made
+/// via the admin world-map editor take effect without a server restart.
+pub struct RefreshWorldMapCache;
+
+#[async_trait]
+impl Operation for RefreshWorldMapCache {
+    fn name(&self) -> &'static str {
+        "refresh_world_map_cache"
+    }
+
+    async fn execute(&self) -> ArcResult<()> {
+        log::info!("Executing operation: {}", self.name());
+        crate::service::world::reload_map_parser();
+        log::info!("World map cache refresh completed");
+        Ok(())
+    }
+}
+
 /// Operation to refresh all score ratings
 /// Equivalent to Python's RefreshAllScoreRating
 pub struct RefreshAllScoreRating {
@@ -543,6 +561,7 @@ impl OperationManager {
                 Box::new(RefreshBundleCache::new(self.bundle_service.clone()))
             }
             "refresh_all_score_rating" => Box::new(RefreshAllScoreRating::new(self.pool.clone())),
+            "refresh_world_map_cache" => Box::new(RefreshWorldMapCache),
             "unlock_user_item" => Box::new(UnlockUserItem::new(self.pool.clone())),
             _ => {
                 return Err(ArcError::no_data(
@@ -567,6 +586,7 @@ impl OperationManager {
             "refresh_song_file_cache",
             "refresh_content_bundle_cache",
             "refresh_all_score_rating",
+            "refresh_world_map_cache",
             "unlock_user_item",
         ]
     }

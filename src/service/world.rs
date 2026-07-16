@@ -7,11 +7,18 @@ use crate::model::world::*;
 use serde_json;
 use sqlx::MySqlPool;
 use std::collections::HashMap;
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-/// Global map parser instance
-static MAP_PARSER: OnceLock<MapParser> = OnceLock::new();
+/// Global map parser instance, behind an `RwLock<Arc<_>>` so the admin world
+/// map editor can hot-reload it after writing a map file. `get_map_parser`
+/// hands out a cheap `Arc` clone (Send + holdable across `.await`), and
+/// `reload_map_parser` swaps in a freshly parsed parser.
+static MAP_PARSER: OnceLock<RwLock<Arc<MapParser>>> = OnceLock::new();
+
+fn map_parser_cell() -> &'static RwLock<Arc<MapParser>> {
+    MAP_PARSER.get_or_init(|| RwLock::new(Arc::new(MapParser::new())))
+}
 
 /// Map parser for loading and caching world map data
 #[derive(Debug, Clone)]
@@ -192,9 +199,16 @@ impl Default for MapParser {
     }
 }
 
-/// Get the global map parser instance
-pub fn get_map_parser() -> &'static MapParser {
-    MAP_PARSER.get_or_init(MapParser::new)
+/// Get the global map parser instance (a cheap `Arc` clone).
+pub fn get_map_parser() -> Arc<MapParser> {
+    Arc::clone(&map_parser_cell().read().unwrap())
+}
+
+/// Re-parse all world map files and swap the global parser. Called by the
+/// admin `refresh_world_map_cache` operation after a map is edited.
+pub fn reload_map_parser() {
+    let fresh = Arc::new(MapParser::new());
+    *map_parser_cell().write().unwrap() = fresh;
 }
 
 /// User map implementation with climbing logic

@@ -263,7 +263,10 @@ pub(super) async fn admin_api_operation(
     require_admin_api(cookies, pool.inner()).await?;
 
     match operation_name {
-        "refresh_song_file_cache" | "refresh_content_bundle_cache" | "refresh_all_score_rating" => {
+        "refresh_song_file_cache"
+        | "refresh_content_bundle_cache"
+        | "refresh_all_score_rating"
+        | "refresh_world_map_cache" => {
             operation_manager
                 .execute_operation(operation_name, None)
                 .await?;

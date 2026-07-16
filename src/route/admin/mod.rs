@@ -10,14 +10,20 @@
 //! - [`mod@presents`] — presents and redeem codes.
 //! - [`mod@catalog`] — song / item / purchase / purchase-item data tables.
 
+mod assets;
+mod backup;
+mod bundle_manager;
 mod catalog;
+mod characters;
 mod dashboard;
+mod db_editor;
 mod helpers;
 mod models;
 mod presents;
 mod scores;
 mod session;
 mod users;
+mod world_maps;
 
 use std::sync::{OnceLock, RwLock};
 
@@ -112,5 +118,44 @@ pub fn routes() -> Vec<Route> {
         catalog::admin_api_purchase_item_create,
         catalog::admin_api_purchase_item_update,
         catalog::admin_api_purchase_item_delete,
+        // bundle manager (catalog scan + content bundle build)
+        bundle_manager::admin_api_bundle_manager_scan,
+        bundle_manager::admin_api_bundle_manager_build,
+        // bundle manager: songlist editor (raw-JSON round-trip with backups)
+        bundle_manager::admin_api_bundle_manager_songs,
+        bundle_manager::admin_api_bundle_manager_song_get,
+        bundle_manager::admin_api_bundle_manager_song_upsert,
+        bundle_manager::admin_api_bundle_manager_songs_delete,
+        bundle_manager::admin_api_bundle_manager_import,
+        // bundle manager: packlist / unlocks editors
+        bundle_manager::admin_api_bundle_manager_catalog_list,
+        bundle_manager::admin_api_bundle_manager_catalog_get,
+        bundle_manager::admin_api_bundle_manager_catalog_upsert,
+        bundle_manager::admin_api_bundle_manager_catalog_delete,
+        bundle_manager::admin_api_packlist_references,
+        bundle_manager::admin_api_packlist_delete,
+        // database backups (manual dump + list + download)
+        backup::admin_api_backup_run,
+        backup::admin_api_backup_list,
+        backup::admin_api_backup_download,
+        // character management
+        characters::admin_api_characters,
+        characters::admin_api_user_characters,
+        characters::admin_api_grant_character,
+        characters::admin_api_remove_character,
+        // editor thumbnails (song jackets, pack images) + pack-image upload
+        assets::admin_api_asset_jacket,
+        assets::admin_api_asset_pack,
+        assets::admin_api_pack_image_save,
+        // generic database editor (any table, full-safety writes)
+        db_editor::admin_api_db_tables,
+        db_editor::admin_api_db_rows,
+        db_editor::admin_api_db_row_write,
+        db_editor::admin_api_db_row_delete,
+        // world map editor
+        world_maps::admin_api_world_maps,
+        world_maps::admin_api_world_map_get,
+        world_maps::admin_api_world_map_upsert,
+        world_maps::admin_api_world_map_delete,
     ]
 }

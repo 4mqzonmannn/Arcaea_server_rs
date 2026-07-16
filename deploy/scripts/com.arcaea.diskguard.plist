@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Periodic disk reclaim for the colima Docker VM.
+  Runs `disk-guard.sh --reclaim` a few times a day so the host sparse disk
+  never creeps toward full between builds (the condition that twice aborted
+  the VM's ext4 journal). It is idempotent and cheap: prunes dangling images
+  and fstrims the VM only when free space is below the threshold.
+
+  Install (per-user LaunchAgent):
+    cp deploy/scripts/com.arcaea.diskguard.plist ~/Library/LaunchAgents/
+    launchctl load  ~/Library/LaunchAgents/com.arcaea.diskguard.plist
+  Uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.arcaea.diskguard.plist
+    rm ~/Library/LaunchAgents/com.arcaea.diskguard.plist
+  Run once now:
+    launchctl start com.arcaea.diskguard
+
+  NOTE: edit ProgramArguments path below if the repo is not at
+  /Users/yamadatarou/Documents/sssss/Arcaea_server_rs.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.arcaea.diskguard</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/yamadatarou/Documents/sssss/Arcaea_server_rs/deploy/scripts/disk-guard.sh</string>
+        <string>--reclaim</string>
+    </array>
+
+    <!-- PATH so `colima` and `docker` resolve under launchd's minimal env. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <!-- Every 6 hours. -->
+    <key>StartInterval</key>
+    <integer>21600</integer>
+
+    <!-- Also run shortly after load/login. -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/arcaea-diskguard.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/arcaea-diskguard.err</string>
+</dict>
+</plist>

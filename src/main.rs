@@ -274,7 +274,11 @@ async fn configure_rocket() -> Rocket<Build> {
             "limits",
             Limits::new()
                 .limit("form", 16.mebibytes())
-                .limit("data-form", 16.mebibytes()),
+                // data-form/file sized for the admin song-import upload: a
+                // full song folder is charts + base.ogg (30MB+ observed) +
+                // jackets, and can include video files in the 100MB range.
+                .limit("data-form", 1.gibibytes())
+                .limit("file", 300.mebibytes()),
         ));
     let game_api_prefixes = game_api_prefixes(&figment);
     let trailing_slash_paths = multiplayer_trailing_slash_paths(&game_api_prefixes);
